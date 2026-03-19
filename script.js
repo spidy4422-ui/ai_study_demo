@@ -207,7 +207,7 @@ async function sendMessage() {
 
   try {
     // Backend API ko message bhej rahe hain
-    const res = await fetch("http://localhost:3000/chat", {
+    const res = await fetch("https://ai-study-demo.onrender.com/chat", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
