@@ -23,7 +23,7 @@ window.onload = () => {
   }
 
   if (!chatBox.innerHTML.trim()) {
-    addAIMessageTyping("Hey Aniruddh! 👋 How can I assist you today?");
+    addAIMessageTyping("Hey! 👋 How can I assist you today?");
   }
 
   scrollToBottom();
