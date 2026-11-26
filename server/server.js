@@ -1,98 +1,100 @@
-// .env file ke variables ko process.env me load karne ke liye
+
+// Environment variables load karo
 require("dotenv").config();
 
-// Express framework import kar rahe hain server banane ke liye
 const express = require("express");
-
-// CORS import kar rahe hain taaki frontend backend se connect kar sake
 const cors = require("cors");
 
-// Express app initialize kiya
 const app = express();
 
-// CORS enable kiya
-app.use(cors());
+// Server configuration
+const PORT = process.env.PORT || 3000;
+const API_KEY = process.env.OPENROUTER_API_KEY;
+const MODEL = process.env.OPENROUTER_MODEL;
 
-// JSON body ko parse karne ke liye middleware
+// Middleware
+app.use(cors());
 app.use(express.json());
 
-// Root route sirf check ke liye ki server chal raha hai ya nahi
+// Server health check
 app.get("/", (req, res) => {
-  res.send("Server is running properly 🚀");
+  res.send("Aniruddh Assist server is running successfully!");
 });
 
-// Chat route jaha frontend se message aayega
+// AI chat endpoint
 app.post("/chat", async (req, res) => {
   try {
-    // User ka bheja hua message request body se le rahe hain
-    const userMessage = req.body.message;
+    const userMessage = req.body?.message;
 
-    // Agar API key missing hai to turant response bhej do
-    if (!process.env.OPENROUTER_API_KEY) {
-      return res.status(500).json({
-        reply: "API key load nahi ho rahi bhai 😅"
+    // Validate user input
+    if (typeof userMessage !== "string" || !userMessage.trim()) {
+      return res.status(400).json({
+        reply: "Please enter a valid message."
       });
     }
 
-    // OpenRouter API ko request bhej rahe hain
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        // Authorization me secure tarike se .env wali key use ki ja rahi hai
-        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+    // Check API configuration
+    if (!API_KEY || !MODEL) {
+      console.error("OpenRouter configuration is missing.");
 
-        // JSON content send karne ke liye content type
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        // Model choose kiya gaya hai automatic selection ke liye
-        model: "openrouter/auto",
+      return res.status(500).json({
+        reply: "AI service configuration is missing."
+      });
+    }
 
-        // Messages array API ko batata hai ki user ne kya bola
-        messages: [
-          {
-            role: "user",
-            content: userMessage
-          }
-        ]
-      })
-    });
+    // Send request to OpenRouter
+    const response = await fetch(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          messages: [
+            {
+              role: "user",
+              content: userMessage.trim()
+            }
+          ]
+        })
+      }
+    );
 
-    // API response ko JSON me convert kar rahe hain
     const data = await response.json();
 
-    // Agar API successful response nahi de rahi to error handle karo
+    // Handle API errors
     if (!response.ok) {
-      console.error("OpenRouter API Error:", data);
+      console.error(
+        "OpenRouter API error:",
+        response.status,
+        data.error?.message || "Unknown error"
+      );
 
-      return res.status(response.status).json({
-        reply: "API error aaya bhai 😅"
+      return res.status(502).json({
+        reply: "AI service error. Please try again."
       });
     }
 
-    // Agar proper choices mili hain to AI reply bhejo
-    if (data.choices && data.choices.length > 0) {
-      return res.json({
-        reply: data.choices[0].message.content
-      });
-    }
+    // Extract AI response
+    const reply = data.choices?.[0]?.message?.content;
 
-    // Agar choices empty hain to fallback message bhejo
     return res.json({
-      reply: "AI se response nahi aaya 😅"
+      reply: reply || "AI could not generate a response."
     });
-  } catch (error) {
-    // Server side unexpected error console me print karo
-    console.error("Server error:", error);
 
-    // User ko friendly error message do
+  } catch (error) {
+    console.error("Server error:", error.message);
+
     return res.status(500).json({
-      reply: "Server error aaya bhai 😅"
+      reply: "Something went wrong. Please try again."
     });
   }
 });
 
-// Server ko port 3000 par run kara rahe hain
-app.listen(3000, () => {
-  console.log("Server running on http://localhost:3000");
+// Start server
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });

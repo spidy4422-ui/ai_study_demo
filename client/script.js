@@ -1,85 +1,72 @@
-// Chat box element ko select kar rahe hain jaha messages show honge
-const chatBox = document.getElementById("chat-box");
 
-// Input field select kar rahe hain
+// DOM elements
+const chatBox = document.getElementById("chat-box");
 const userInput = document.getElementById("user-input");
 
-// AI message aane par ek sound bajane ke liye audio object banaya
-const aiSound = new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg");
+// Backend API endpoint
+const API_URL = "http://localhost:3000/chat";
 
+// Audio notification for AI responses
+const aiSound = new Audio(
+  "https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"
+);
+
+// Restore saved chat and preferences
 window.onload = () => {
-  // Purani chat localStorage se load kar rahe hain
   chatBox.innerHTML = localStorage.getItem("chat") || "";
 
-  // Saved theme ko restore kar rahe hain
   const savedTheme = localStorage.getItem("theme");
+
   if (savedTheme === "dark") {
     document.body.classList.add("dark");
   }
 
-  // Agar chat box empty hai to welcome message dikhao
   if (!chatBox.innerHTML.trim()) {
     addAIMessageTyping("Hey Aniruddh! 👋 How can I assist you today?");
   }
 
-  // Scroll ko bottom par le aao
   scrollToBottom();
 };
 
-// Chat HTML ko localStorage me save karne ka function
+// Save the current conversation
 function saveChat() {
   localStorage.setItem("chat", chatBox.innerHTML);
 }
 
-// Scroll hamesha latest message tak le jaane ke liye function
+// Keep the latest message visible
 function scrollToBottom() {
   chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-// Current time ko readable format me return karega
+// Return the current time in 12-hour format
 function getTime() {
   const now = new Date();
-
-  // Hour nikaal rahe hain
   let hours = now.getHours();
 
-  // Minutes ko 2 digit format me convert kar rahe hain
   const minutes = now.getMinutes().toString().padStart(2, "0");
+  const period = hours >= 12 ? "PM" : "AM";
 
-  // AM/PM decide kar rahe hain
-  const ampm = hours >= 12 ? "PM" : "AM";
-
-  // 24 hour format ko 12 hour format me convert kar rahe hain
   hours = hours % 12 || 12;
 
-  // Final formatted time return
-  return `${hours}:${minutes} ${ampm}`;
+  return `${hours}:${minutes} ${period}`;
 }
 
-// AI sound safe tarike se play karne ke liye
+// Play the notification sound without interrupting the chat
 function safePlaySound() {
-  // Browser kabhi-kabhi audio play reject karta hai, isliye catch lagaya
   aiSound.play().catch(() => {});
 }
 
-// Welcome ya manual AI message typing effect ke saath show karne ke liye function
+// Display an AI message with a typing animation
 async function addAIMessageTyping(text) {
-  // Pehle loader banao
   const loader = createAILoader();
-
-  // Fir text ko typing effect se show karo
   await typeText(loader, text);
 }
 
-// AI ke liye temporary typing loader create karte hain
+// Create the temporary AI typing indicator
 function createAILoader() {
-  // Outer wrapper div banaya
   const loader = document.createElement("div");
-
-  // Is message ko AI class di gayi taaki left side par aaye
   loader.className = "message ai";
 
-  // Loader ke andar AI icon + typing bubble banaya
   loader.innerHTML = `
     <div class="msg-icon">🤖</div>
 
@@ -89,218 +76,185 @@ function createAILoader() {
       </div>
     </div>
 
-    <button class="delete" onclick="deleteMsg(this)" title="Delete message">✖</button>
+    <button
+      class="delete"
+      onclick="deleteMsg(this)"
+      title="Delete message"
+    >✖</button>
   `;
 
-  // Loader ko chat area me append kiya
   chatBox.appendChild(loader);
-
-  // Latest message tak scroll
   scrollToBottom();
 
-  // Bana hua loader return kar diya
   return loader;
 }
 
-// Typing effect se AI text dikhane ka function
+// Display text character by character
 async function typeText(loader, text) {
-  // Bubble element ko select kiya
   const bubble = loader.querySelector(".bubble");
 
-  // Typing class hata di kyunki ab actual text dikhana hai
   bubble.classList.remove("typing");
-
-  // Bubble ko empty kiya
   bubble.textContent = "";
 
-  // Text ki length ke hisaab se speed set kar rahe hain
   const baseSpeed = 12;
   const maxSpeed = 28;
-  const delayPerChar = Math.min(maxSpeed, Math.max(baseSpeed, text.length * 0.35));
+  const delayPerChar = Math.min(
+    maxSpeed,
+    Math.max(baseSpeed, text.length * 0.35)
+  );
 
-  // Har character ko ek-ek karke append karenge
   for (let i = 0; i < text.length; i++) {
     bubble.textContent += text[i];
-
-    // Har character ke baad thoda scroll bottom
     scrollToBottom();
 
-    // Typing effect ke liye delay
-    await new Promise((resolve) => setTimeout(resolve, delayPerChar));
+    await new Promise((resolve) =>
+      setTimeout(resolve, delayPerChar)
+    );
   }
 
-  // Message content wrapper select kiya
   const content = loader.querySelector(".message-content");
 
-  // Time add kiya
-  content.innerHTML += `<div class="time">${getTime()}</div>`;
+  const timeElement = document.createElement("div");
+  timeElement.className = "time";
+  timeElement.textContent = getTime();
 
-  // Sound play kiya
+  content.appendChild(timeElement);
+
   safePlaySound();
-
-  // Chat save kar di
   saveChat();
-
-  // Final scroll bottom
   scrollToBottom();
 }
 
-// User message DOM me add karne ka function
+// Add a user message to the conversation
 function addUserMessage(userText) {
-  // User message wrapper create kiya
   const userMessage = document.createElement("div");
-
-  // Isko user class di gayi taaki right side par aaye
   userMessage.className = "message user";
 
-  // User message ka HTML structure
   userMessage.innerHTML = `
     <div class="message-content">
       <div class="bubble">${escapeHTML(userText)}</div>
       <div class="time">${getTime()}</div>
     </div>
 
-    <button class="delete" onclick="deleteMsg(this)" title="Delete message">✖</button>
+    <button
+      class="delete"
+      onclick="deleteMsg(this)"
+      title="Delete message"
+    >✖</button>
   `;
 
-  // Chat box me append
   chatBox.appendChild(userMessage);
 
-  // Scroll bottom
   scrollToBottom();
-
-  // Save chat
   saveChat();
 }
 
-// HTML special characters ko safe banane ke liye function
+// Escape HTML characters before inserting user input into the DOM
 function escapeHTML(text) {
-  // Temporary div create karte hain
   const div = document.createElement("div");
-
-  // User ka text textContent me daalte hain taaki HTML execute na ho
   div.textContent = text;
 
-  // Safe HTML return karte hain
   return div.innerHTML;
 }
 
-// Message bhejne ka main function
+// Send a message to the backend and display the AI response
 async function sendMessage() {
-  // Input field se text nikaal rahe hain
   const userText = userInput.value.trim();
 
-  // Agar input empty hai to kuch mat karo
   if (!userText) return;
 
-  // User message screen par show karo
   addUserMessage(userText);
 
-  // Input box clear karo
   userInput.value = "";
-
-  // Input par wapas focus do
   userInput.focus();
 
-  // AI typing loader create karo
   const loader = createAILoader();
 
   try {
-    // Backend API ko message bhej rahe hain
-    const res = await fetch("https://ai-study-demo.onrender.com/chat", {
+    const response = await fetch(API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ message: userText })
+      body: JSON.stringify({
+        message: userText
+      })
     });
 
-    // Agar response valid nahi hai to error throw karo
-    if (!res.ok) {
-      throw new Error(`HTTP error! Status: ${res.status}`);
+    if (!response.ok) {
+      throw new Error(`Request failed with status ${response.status}`);
     }
 
-    // JSON response parse karo
-    const data = await res.json();
+    const data = await response.json();
 
-    // AI reply ko typing effect ke saath show karo
-    await typeText(loader, `Hey Aniruddh, ${data.reply}`);
+    if (typeof data.reply !== "string" || !data.reply.trim()) {
+      throw new Error("Invalid response received from the server.");
+    }
+
+    await typeText(loader, data.reply);
+
   } catch (error) {
-    // Console me debugging ke liye error print kar do
-    console.error("Frontend error:", error);
+    console.error("Chat request failed:", error);
 
-    // Error aane par friendly message show karo
-    await typeText(loader, "Oops! Something went wrong 😅");
+    await typeText(
+      loader,
+      "Sorry, something went wrong. Please check your connection and try again."
+    );
   }
 }
 
-// Keyboard se Enter press karne par message send hoga
+// Send a message when Enter is pressed
 function handleKey(event) {
-  // Sirf Enter press hone par sendMessage chale
-  if (event.key === "Enter") {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
     sendMessage();
   }
 }
 
-// Puri chat clear karne ka function
+// Clear the entire conversation
 function clearChat() {
-  // User se confirmation lo
-  const isConfirmed = confirm("Are you sure you want to clear all chat?");
+  const isConfirmed = confirm(
+    "Are you sure you want to clear the entire chat?"
+  );
 
-  // Agar user confirm nahi kare to function stop
   if (!isConfirmed) return;
 
-  // Chat box empty kar do
   chatBox.innerHTML = "";
-
-  // LocalStorage se bhi purani chat hata do
   localStorage.removeItem("chat");
 
-  // Welcome message fir se dikhao
-  addAIMessageTyping("Chat cleared successfully ✅");
+  addAIMessageTyping("Chat cleared successfully! ✅");
 }
 
-// Individual message delete karne ka function
+// Delete an individual message
 function deleteMsg(button) {
-  // Delete se pehle confirmation
   const isConfirmed = confirm("Delete this message?");
 
-  // Agar cancel kiya to kuch mat karo
   if (!isConfirmed) return;
 
-  // Button ke parent message wrapper ko target karo
-  const msg = button.parentElement;
+  const message = button.parentElement;
 
-  // Remove hone se pehle smooth animation lagao
-  msg.style.opacity = "0";
-  msg.style.transform = "translateY(8px)";
-  msg.style.transition = "all 0.25s ease";
+  message.style.opacity = "0";
+  message.style.transform = "translateY(8px)";
+  message.style.transition = "all 0.25s ease";
 
-  // Thodi delay ke baad actual remove
   setTimeout(() => {
-    msg.remove();
-
-    // Remove ke baad updated chat save karo
+    message.remove();
     saveChat();
   }, 250);
 }
 
-// Dark mode on/off karne ka function
-
+// Toggle dark mode and save the selected theme
 function toggleDarkMode() {
-  // Body par dark class toggle hogi
   document.body.classList.toggle("dark");
 
-  // Current theme ko localStorage me save karenge
-  if (document.body.classList.contains("dark")) {
-    localStorage.setItem("theme", "dark");
-  } else {
-    localStorage.setItem("theme", "light");
-  }
+  const currentTheme = document.body.classList.contains("dark")
+    ? "dark"
+    : "light";
+
+  localStorage.setItem("theme", currentTheme);
 }
-// Mobile keyboard open hone par latest messages visible rahein
+
+// Keep the latest messages visible when the mobile keyboard opens
 userInput.addEventListener("focus", () => {
-  setTimeout(() => {
-    scrollToBottom();
-  }, 300);
+  setTimeout(scrollToBottom, 300);
 });
