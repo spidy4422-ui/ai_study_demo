@@ -4,7 +4,8 @@ const chatBox = document.getElementById("chat-box");
 const userInput = document.getElementById("user-input");
 
 // Backend API endpoint
-const API_URL = "http://localhost:3000/chat";
+const API_URL = "https://ai-study-demo.onrender.com/chat";
+
 
 // Audio notification for AI responses
 const aiSound = new Audio(
